@@ -35,7 +35,7 @@ setup(
     ],
     package_dir={'face_recognition': 'face_recognition'},
     package_data={
-        'face_recognition': ['models/*.dat']
+        'face_recognition': ['models/*.dat', 'models/*.pt']
     },
     entry_points={
         'console_scripts': [

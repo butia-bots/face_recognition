@@ -20,14 +20,19 @@ obama_face_encoding = face_recognition.face_encodings(obama_image)[0]
 biden_image = face_recognition.load_image_file("biden.jpg")
 biden_face_encoding = face_recognition.face_encodings(biden_image)[0]
 
+maurell_image = face_recognition.load_image_file("andreMaurell.jpg")
+maurell_face_encoding = face_recognition.face_encodings(maurell_image)[0]
+
 # Create arrays of known face encodings and their names
 known_face_encodings = [
     obama_face_encoding,
-    biden_face_encoding
+    biden_face_encoding,
+    maurell_face_encoding
 ]
 known_face_names = [
     "Barack Obama",
-    "Joe Biden"
+    "Joe Biden",
+    "Andre Maurell"
 ]
 
 while True:
@@ -38,7 +43,8 @@ while True:
     rgb_frame = frame[:, :, ::-1]
 
     # Find all the faces and face enqcodings in the frame of video
-    face_locations = face_recognition.face_locations(rgb_frame)
+    face_locations = face_recognition.face_locations(rgb_frame, model="cnn")
+    print(face_locations)
     face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
 
     # Loop through each face in this frame of video

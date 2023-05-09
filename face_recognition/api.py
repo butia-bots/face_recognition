@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from ultralytics import YOLO
 import PIL.Image
 import dlib
 import numpy as np
@@ -25,6 +26,9 @@ pose_predictor_5_point = dlib.shape_predictor(predictor_5_point_model)
 cnn_face_detection_model = face_recognition_models.cnn_face_detector_model_location()
 cnn_face_detector = dlib.cnn_face_detection_model_v1(cnn_face_detection_model)
 
+yolov8_face_detection_model = face_recognition_models.yolov8_face_detector_model_location()
+yolov8_face_detector = YOLO(yolov8_face_detection_model)
+
 face_recognition_model = face_recognition_models.face_recognition_model_location()
 face_encoder = dlib.face_recognition_model_v1(face_recognition_model)
 
@@ -37,6 +41,9 @@ def _rect_to_css(rect):
     :return: a plain tuple representation of the rect in (top, right, bottom, left) order
     """
     return rect.top(), rect.right(), rect.bottom(), rect.left()
+
+def _box_to_css(box):
+    return int(box.xyxy.tolist()[0][1]), int(box.xyxy.tolist()[0][2]), int(box.xyxy.tolist()[0][3]), int(box.xyxy.tolist()[0][0])
 
 
 def _css_to_rect(css):
@@ -99,10 +106,15 @@ def _raw_face_locations(img, number_of_times_to_upsample=1, model="hog"):
                   deep-learning model which is GPU/CUDA accelerated (if available). The default is "hog".
     :return: A list of dlib 'rect' objects of found face locations
     """
-    if model == "cnn":
+    if model == "yolov8":
+        return yolov8_face_detector(img)
+    
+    elif model == "cnn":
         return cnn_face_detector(img, number_of_times_to_upsample)
+    
     else:
         return face_detector(img, number_of_times_to_upsample)
+
 
 
 def face_locations(img, number_of_times_to_upsample=1, model="hog"):
@@ -115,10 +127,16 @@ def face_locations(img, number_of_times_to_upsample=1, model="hog"):
                   deep-learning model which is GPU/CUDA accelerated (if available). The default is "hog".
     :return: A list of tuples of found face locations in css (top, right, bottom, left) order
     """
-    if model == "cnn":
+    if model == "yolov8":
+        return [_trim_css_to_bounds(_box_to_css(face), img.shape) for face in _raw_face_locations(img, number_of_times_to_upsample, "yolov8")[0].boxes]
+    
+    elif model == "cnn":
         return [_trim_css_to_bounds(_rect_to_css(face.rect), img.shape) for face in _raw_face_locations(img, number_of_times_to_upsample, "cnn")]
+    
     else:
         return [_trim_css_to_bounds(_rect_to_css(face), img.shape) for face in _raw_face_locations(img, number_of_times_to_upsample, model)]
+
+    
 
 
 def _raw_face_locations_batched(images, number_of_times_to_upsample=1, batch_size=128):
@@ -129,7 +147,7 @@ def _raw_face_locations_batched(images, number_of_times_to_upsample=1, batch_siz
     :param number_of_times_to_upsample: How many times to upsample the image looking for faces. Higher numbers find smaller faces.
     :return: A list of dlib 'rect' objects of found face locations
     """
-    return cnn_face_detector(images, number_of_times_to_upsample, batch_size=batch_size)
+    return yolov8_face_detector(images, number_of_times_to_upsample, batch_size=batch_size)
 
 
 def batch_face_locations(images, number_of_times_to_upsample=1, batch_size=128):
@@ -143,12 +161,12 @@ def batch_face_locations(images, number_of_times_to_upsample=1, batch_size=128):
     :param batch_size: How many images to include in each GPU processing batch.
     :return: A list of tuples of found face locations in css (top, right, bottom, left) order
     """
-    def convert_cnn_detections_to_css(detections):
+    def convert_yolov8_detections_to_css(detections):
         return [_trim_css_to_bounds(_rect_to_css(face.rect), images[0].shape) for face in detections]
 
     raw_detections_batched = _raw_face_locations_batched(images, number_of_times_to_upsample, batch_size)
 
-    return list(map(convert_cnn_detections_to_css, raw_detections_batched))
+    return list(map(convert_yolov8_detections_to_css, raw_detections_batched))
 
 
 def _raw_face_landmarks(face_image, face_locations=None, model="large"):
